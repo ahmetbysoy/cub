@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import threading
 import time
 import traceback
@@ -145,6 +146,93 @@ class Bridge:
 
 BRIDGE: Bridge | None = None
 
+# --------------------------------------------------------------------------- #
+# Döküm (dump) işleri
+# --------------------------------------------------------------------------- #
+DUMP_DIR = os.environ.get("CUBECRAFT_DUMP_DIR", os.path.join(HERE, "dumps"))
+DUMP_JOBS: dict[str, dict] = {}
+DUMP_SEQ = [0]
+
+
+def _safe_dump_name(name: str) -> str:
+    import re as _re
+    return _re.sub(r"[^A-Za-z0-9_.-]", "_", os.path.basename(name or ""))
+
+
+def start_dump(assembly: str, chunk: int = 40) -> dict:
+    assert BRIDGE is not None
+    if BRIDGE.script is None:
+        raise RuntimeError("bağlantı yok")
+    if not assembly:
+        raise ValueError("assembly adı gerekli")
+    os.makedirs(DUMP_DIR, exist_ok=True)
+    DUMP_SEQ[0] += 1
+    job = {
+        "id": "d%d" % DUMP_SEQ[0],
+        "assembly": assembly,
+        "state": "running",
+        "done": 0,
+        "total": None,
+        "path": None,
+        "bytes": None,
+        "error": None,
+        "started": int(time.time() * 1000),
+    }
+    DUMP_JOBS[job["id"]] = job
+    threading.Thread(target=_dump_worker, args=(job, chunk), daemon=True).start()
+    return job
+
+
+def _dump_worker(job: dict, chunk: int) -> None:
+    assert BRIDGE is not None
+    try:
+        classes: list = []
+        offset = 0
+        while True:
+            res = BRIDGE.call("dumpClasses", job["assembly"], offset, chunk)
+            total = int(res.get("total") or 0)
+            batch = res.get("classes") or []
+            classes.extend(batch)
+            offset += len(batch)
+            job["done"] = offset
+            job["total"] = total
+            if not batch or offset >= total:
+                break
+        try:
+            info = BRIDGE.call("ping")
+        except Exception:  # noqa: BLE001
+            info = {}
+        payload = {
+            "assembly": job["assembly"],
+            "dumped_at": int(time.time() * 1000),
+            "unity_version": info.get("unityVersion"),
+            "class_count": len(classes),
+            "classes": classes,
+        }
+        fname = "%s.%s.json" % (_safe_dump_name(job["assembly"]), time.strftime("%Y%m%d-%H%M%S"))
+        path = os.path.join(DUMP_DIR, fname)
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, ensure_ascii=False)
+        job.update(state="done", path=path, bytes=os.path.getsize(path))
+        BRIDGE._add_log("info", "döküm tamam: %s (%d sınıf, %.1f MB)"
+                        % (fname, len(classes), job["bytes"] / 1048576))
+    except Exception as exc:  # noqa: BLE001
+        job.update(state="error", error="%s: %s" % (type(exc).__name__, exc))
+        if BRIDGE is not None:
+            BRIDGE._add_log("error", "döküm hatası: " + job["error"])
+
+
+def list_dumps() -> list[dict]:
+    if not os.path.isdir(DUMP_DIR):
+        return []
+    out = []
+    for name in sorted(os.listdir(DUMP_DIR)):
+        if not name.endswith(".json"):
+            continue
+        path = os.path.join(DUMP_DIR, name)
+        out.append({"name": name, "bytes": os.path.getsize(path), "mtime": int(os.path.getmtime(path) * 1000)})
+    return out
+
 
 # --------------------------------------------------------------------------- #
 # HTTP katmanı
@@ -190,6 +278,15 @@ PAGE = """<!doctype html>
     <div id="results"></div>
   </section>
   <section>
+    <h2>Döküm al (sınıf + metod listesi)</h2>
+    <div class="row">
+      <select id="asm" style="min-width:260px"></select>
+      <button onclick="startDump()">Dökümü başlat</button>
+      <span id="dumpStatus" class="muted">—</span>
+    </div>
+    <div id="dumpList" class="muted" style="margin-top:8px"></div>
+  </section>
+  <section>
     <h2>Aktif modlar</h2>
     <button class="alt" onclick="unwatchAll()">Tümünü kaldır</button>
     <div id="watches" class="muted">—</div>
@@ -213,8 +310,10 @@ async function api(path, opts) {
 async function refreshStatus() {
   const s = await api('/api/status');
   const el = $('status');
-  if (s.connected && !s.error) { el.className = 'pill ok'; el.textContent = `bağlı · Unity ${s.unityVersion || '?'} · ${s.classes || '?'} sınıf`; }
-  else { el.className = 'pill bad'; el.textContent = 'bağlı değil' + (s.error ? ' — ' + s.error : ''); }
+  if (s.connected && !s.error) {
+    el.className = 'pill ok'; el.textContent = `bağlı · Unity ${s.unityVersion || '?'} · ${s.classes || '?'} sınıf`;
+    if (!$('asm').options.length) loadAssemblies();
+  } else { el.className = 'pill bad'; el.textContent = 'bağlı değil' + (s.error ? ' — ' + s.error : ''); }
   loadWatches();
 }
 
@@ -270,6 +369,51 @@ async function unwatchAll() {
   loadWatches();
 }
 
+async function loadAssemblies() {
+  const data = await api('/api/assemblies');
+  const sel = $('asm');
+  const list = data.assemblies || [];
+  sel.innerHTML = list
+    .sort((a, b) => b.classes - a.classes)
+    .map(a => `<option value="${a.name}">${a.name} (${a.classes} sınıf)</option>`).join('');
+  const preferred = list.find(a => a.name === 'Assembly-CSharp.dll');
+  if (preferred) sel.value = 'Assembly-CSharp.dll';
+}
+
+async function startDump() {
+  const assembly = $('asm').value;
+  if (!assembly) return;
+  $('dumpStatus').textContent = 'başlatılıyor…';
+  const job = await api('/api/dump', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({assembly})});
+  if (job.error) { $('dumpStatus').textContent = 'Hata: ' + job.error; return; }
+  pollDump(job.id);
+}
+
+async function pollDump(id) {
+  const job = await api('/api/dump?id=' + encodeURIComponent(id));
+  if (job.error) { $('dumpStatus').textContent = 'Hata: ' + job.error; return; }
+  if (job.state === 'running') {
+    $('dumpStatus').textContent = `${job.assembly}: ${job.done}/${job.total ?? '?'} sınıf…`;
+    setTimeout(() => pollDump(id), 1200);
+    return;
+  }
+  if (job.state === 'done') {
+    $('dumpStatus').innerHTML = `bitti ✔ <a href="/api/dump/file?name=${encodeURIComponent(job.path.split('/').pop())}">${job.path.split('/').pop()}</a>` +
+      ` <span class="muted">(${(job.bytes/1048576).toFixed(1)} MB)</span>`;
+  } else {
+    $('dumpStatus').textContent = 'Hata: ' + (job.error || 'bilinmiyor');
+  }
+  loadDumpList();
+}
+
+async function loadDumpList() {
+  const data = await api('/api/dump');
+  const files = data.files || [];
+  $('dumpList').innerHTML = files.length
+    ? 'Kayıtlı dökümler: ' + files.map(f => `<a href="/api/dump/file?name=${encodeURIComponent(f.name)}">${f.name}</a> <span class="muted">(${(f.bytes/1048576).toFixed(1)} MB)</span>`).join(' · ')
+    : 'henüz döküm yok.';
+}
+
 async function pollLogs() {
   const data = await api('/api/logs?since=' + lastTs);
   const box = $('log');
@@ -282,6 +426,7 @@ async function pollLogs() {
 }
 
 refreshStatus();
+loadDumpList();
 setInterval(refreshStatus, 5000);
 setInterval(pollLogs, 1500);
 </script>
@@ -361,6 +506,33 @@ class Handler(BaseHTTPRequestHandler):
             name = query.get("name", [""])[0]
             return self._guard(lambda: self._json({"fields": BRIDGE.call("listFields", a, ns, name)}))
 
+        if parsed.path == "/api/assemblies":
+            return self._guard(lambda: self._json({"assemblies": BRIDGE.call("listAssemblies")}))
+
+        if parsed.path == "/api/dump":
+            job_id = query.get("id", [None])[0]
+            if job_id:
+                job = DUMP_JOBS.get(job_id)
+                if not job:
+                    return self._json({"error": "iş yok: " + job_id}, 404)
+                return self._json(job)
+            return self._json({"jobs": list(DUMP_JOBS.values()), "files": list_dumps()})
+
+        if parsed.path == "/api/dump/file":
+            name = _safe_dump_name(query.get("name", [""])[0])
+            path = os.path.join(DUMP_DIR, name)
+            if not name or not os.path.isfile(path):
+                return self._json({"error": "dosya yok: " + name}, 404)
+            size = os.path.getsize(path)
+            self.send_response(200)
+            self.send_header("content-type", "application/json; charset=utf-8")
+            self.send_header("content-length", str(size))
+            self.send_header("content-disposition", 'attachment; filename="%s"' % name)
+            self.end_headers()
+            with open(path, "rb") as fh:
+                shutil.copyfileobj(fh, self.wfile)
+            return
+
         return self._json({"error": "bilinmeyen yol: " + parsed.path}, 404)
 
     def do_POST(self) -> None:  # noqa: N802
@@ -382,6 +554,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._guard(lambda: self._json(BRIDGE.call("writeField", payload)))
         if parsed.path == "/api/connect":
             return self._guard(lambda: (BRIDGE.connect(), self._json(BRIDGE.status()))[1])
+        if parsed.path == "/api/dump":
+            assembly = payload.get("assembly", "")
+            chunk = int(payload.get("chunk") or 40)
+            return self._guard(lambda: self._json(start_dump(assembly, chunk)))
 
         return self._json({"error": "bilinmeyen yol: " + parsed.path}, 404)
 

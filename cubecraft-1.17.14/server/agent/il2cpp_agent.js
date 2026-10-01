@@ -93,8 +93,54 @@ rpc.exports = {
         });
     },
 
-    searchClasses(term, limit) {
-        term = String(term || "").toLowerCase();
+    listAssemblies() {
+        return Il2Cpp.perform(() => Il2Cpp.domain.assemblies.map((a) => ({
+            name: a.name,
+            classes: a.image.classCount
+        })));
+    },
+
+    dumpClasses(assembly, offset, count) {
+        return Il2Cpp.perform(() => {
+            const asm = Il2Cpp.domain.assemblies.filter((a) => a.name === assembly)[0];
+            if (!asm) throw new Error("assembly bulunamadı: " + assembly);
+            const all = asm.image.classes;
+            const slice = all.slice(offset, offset + count);
+            return {
+                total: all.length,
+                offset: offset,
+                classes: slice.map((klass) => ({
+                    namespace: klass.namespace || "",
+                    name: klass.name,
+                    fullName: klass.fullName,
+                    kind: klass.isEnum ? "enum" : klass.isStruct ? "struct" : klass.isInterface ? "interface" : "class",
+                    parent: (function () { try { return klass.parent ? klass.parent.type.name : null; } catch (_) { return null; } })(),
+                    fields: klass.fields.map((f) => {
+                        let type = "?", offsetValue = null, isStatic = null;
+                        try { type = f.type.name; } catch (_) { }
+                        try { offsetValue = f.offset; } catch (_) { }
+                        try { isStatic = f.isStatic; } catch (_) { }
+                        return { name: f.name, type: type, isStatic: isStatic, offset: offsetValue };
+                    }),
+                    methods: klass.methods.map((m) => {
+                        let ret = "?", rva = null, va = null, isStatic = null, params = [];
+                        try { ret = m.returnType.name; } catch (_) { }
+                        try { rva = m.relativeVirtualAddress.toString(); } catch (_) { }
+                        try { va = m.virtualAddress.toString(); } catch (_) { }
+                        try { isStatic = m.isStatic; } catch (_) { }
+                        try {
+                            params = (m.parameters || []).map((p) => {
+                                try { return p.type.name + " " + p.name; } catch (_) { return "?"; }
+                            });
+                        } catch (_) { }
+                        return { name: m.name, parameterCount: m.parameterCount, isStatic: isStatic, returnType: ret, rva: rva, va: va, parameters: params };
+                    })
+                }))
+            };
+        });
+    },
+
+    searchClasses(term, limit) {        term = String(term || "").toLowerCase();
         limit = limit || 100;
         return Il2Cpp.perform(() => {
             const out = [];

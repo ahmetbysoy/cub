@@ -79,6 +79,9 @@ panelin "Yenile" düğmesine bas.
 - Bir metodun dönüşünü izle (yerel mi, sunucu mu geldiğini gör)
 - "Sabit döndür" / "×N çarp" şablonlarıyla modla
 - `/api/invoke` ile oyunun kendi metodlarını çağır (ör. para ekleme metodu)
+- **Döküm al**: “Döküm al” bölümünden `Assembly-CSharp.dll` → `server/dumps/*.json` dosyasını
+  indir. Bu dosya, sınıf/metod adlarının tam listesini içerir; kesin mod şablonları bu dökümden
+  yazılır (panelden tek tıkla kurulabilecek şekilde).
 
 ## 4) Geri alma
 

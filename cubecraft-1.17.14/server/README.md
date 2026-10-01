@@ -66,6 +66,23 @@ curl -s -X POST localhost:8080/api/invoke -H 'content-type: application/json' \
        "method":"AddMoney","paramCount":1,"args":[999999],"onInstance":true}'
 ```
 
+### 3.1) Döküm alma (mod yazmak için şart)
+
+Paneldeki **“Döküm al”** bölümünden `Assembly-CSharp.dll` seçip başlatın. Sunucu, sınıfları
+40'lık parçalar hâlinde ajanından çeker ve `server/dumps/` altına JSON olarak yazar:
+
+```bash
+curl -s localhost:8080/api/assemblies | head -c 300           # assembly listesi
+curl -s -X POST localhost:8080/api/dump -H 'content-type: application/json' \
+     -d '{"assembly":"Assembly-CSharp.dll"}'                   # {id, state:"running"}
+curl -s "localhost:8080/api/dump?id=d1"                        # ilerleme / sonuç
+curl -sO "localhost:8080/api/dump/file?name=Assembly-CSharp.dll.20261001-101500.json"
+```
+
+Dosya `classes[].{namespace,name,fields[],methods[]}` biçimindedir; her metod için
+`parameterCount`, `isStatic`, `returnType`, `rva`, `va` ve parametre listesi bulunur.
+Bu dosyayı paylaşın → kesin (isim tabanlı) mod şablonları yazılabilir.
+
 ## 4) Durum ve sınırlar
 
 - Bu bir **prototiptir**; cihaz üzerinde test edilmedi (sandbox'ta Android yok).
