@@ -171,12 +171,7 @@ PY
 job_control() {
   prepare_inputs || return 1
 
-  log "Python bağımlılıkları (venv) kuruluyor…"
-  rm -rf "$WORK/venv"
-  python3 -m venv "$WORK/venv" >>"$LOG" 2>&1 || { fail "venv oluşturulamadı"; return 1; }
-  "$WORK/venv/bin/pip" install -q --disable-pip-version-check --upgrade pip >>"$LOG" 2>&1 || true
-  "$WORK/venv/bin/pip" install -q --disable-pip-version-check lief "git+https://github.com/adityatelange/sign-apk-py" \
-    >>"$LOG" 2>&1 || { fail "pip kurulumu başarısız"; return 1; }
+  ensure_venv || return 1
 
   local key_args=()
   if [ -f relay/keys/cubecraft-mod.pem ] && [ -f relay/keys/cubecraft-mod.crt ]; then
@@ -197,35 +192,17 @@ job_control() {
   [ -f "$xapk" ] || { fail "XAPK üretilmedi"; return 1; }
   log "kontrol XAPK: $(stat -c%s "$xapk") bayt · sha256=$(sha256sum "$xapk" | cut -c1-16)…"
 
-  # ---- Release oluştur (checkout token'ı ile) ----
-  if [ -n "${CC_SKIP_RELEASE:-}" ]; then
-    log "CC_SKIP_RELEASE ayarlı → Release adımı atlandı (yerel test)"
-  else
-  local auth b64 token
-  auth="$(git config --local --get http.https://github.com/.extraheader 2>/dev/null || true)"
-  token=""
-  if [[ "$auth" == *"basic "* ]]; then
-    b64="${auth##*basic }"
-    token="$(printf '%s' "$b64" | base64 -d 2>/dev/null | sed 's/^x-access-token://')"
+  # ---- Release ----
+  local ks; ks="$(key_args)"
+  local files=("$xapk")
+  if [ -f "$WORK/control/control-summary.json" ]; then
+    { echo "--- kontrol özeti ---"; cat "$WORK/control/control-summary.json"; } > "$WORK/control-summary.txt" || true
+    files+=("$WORK/control-summary.txt")
   fi
-  if [ -z "$token" ]; then
-    fail "token alınamadı → Release oluşturulamadı"
-  else
-    export GH_TOKEN="$token" GITHUB_TOKEN="$token"
-    local tag="control-1.17.14"
-    gh release view "$tag" >/dev/null 2>&1 || \
-      gh release create "$tag" --title "CubeCraft 1.17.14 — KONTROL (sadece yeniden imzalı)" \
-        --notes "İçerik değişmedi; yalnızca v2+v3 yeniden imzalandı. Amaç: repack+imzanın cihazda çalışıp çalışmadığını test etmek. sha256 ve boyut için içindeki control-summary.json / run-status.txt dosyalarına bakın." \
-        >>"$LOG" 2>&1
-    gh release upload "$tag" "$xapk" --clobber >>"$LOG" 2>&1 \
-      && log "Release güncellendi: $tag ✔" \
-      || fail "Release yüklenemedi"
-    if [ -f "$WORK/control/control-summary.json" ]; then
-      { echo "--- kontrol özeti ---"; cat "$WORK/control/control-summary.json"; } > "$WORK/control-summary.txt" 2>/dev/null || true
-      gh release upload "$tag" "$WORK/control-summary.txt" --clobber >>"$LOG" 2>&1 || true
-    fi
-  fi
-  fi
+  publish_release "control-1.17.14" "CubeCraft 1.17.14 — KONTROL (sadece yeniden imzalı)" \
+    "İçerik değişmedi; yalnızca v2+v3 yeniden imzalandı. Amaç: repack+imzanın cihazda çalıştığını doğrulamak." \
+    "${files[@]}" || true
+  unset ks
 
   return 0
 }
@@ -309,6 +286,83 @@ publish_status() {
   [ -n "$annot" ] && echo "::warning title=relay-durum::$annot"
 }
 trap publish_status EXIT
+
+ensure_venv() {
+  [ -x "$WORK/venv/bin/pip" ] && return 0
+  log "Python bağımlılıkları (venv) kuruluyor…"
+  rm -rf "$WORK/venv"
+  python3 -m venv "$WORK/venv" >>"$LOG" 2>&1 || { fail "venv oluşturulamadı"; return 1; }
+  "$WORK/venv/bin/pip" install -q --disable-pip-version-check --upgrade pip >>"$LOG" 2>&1 || true
+  "$WORK/venv/bin/pip" install -q --disable-pip-version-check lief "git+https://github.com/adityatelange/sign-apk-py" \
+    >>"$LOG" 2>&1 || { fail "pip kurulumu başarısız"; return 1; }
+}
+
+# Anahtar argümanları (repoda sabit anahtar varsa onu kullan)
+key_args() {
+  if [ -f relay/keys/cubecraft-mod.pem ] && [ -f relay/keys/cubecraft-mod.crt ]; then
+    printf -- '--key relay/keys/cubecraft-mod.pem --cert relay/keys/cubecraft-mod.crt'
+  fi
+}
+
+# Release'e dosya yükle (token checkout'tan)
+publish_release() {
+  local tag="$1" title="$2" notes="$3"; shift 3
+  if [ -n "${CC_SKIP_RELEASE:-}" ]; then
+    log "CC_SKIP_RELEASE ayarlı → Release adımı atlandı"
+    return 0
+  fi
+  local token; token="$(git_token || true)"
+  if [ -z "$token" ]; then
+    fail "token alınamadı → Release oluşturulamadı"; return 1
+  fi
+  export GH_TOKEN="$token" GITHUB_TOKEN="$token"
+  gh release view "$tag" >/dev/null 2>&1 || \
+    gh release create "$tag" --title "$title" --notes "$notes" >>"$LOG" 2>&1 || true
+  local f
+  for f in "$@"; do
+    [ -f "$f" ] || continue
+    gh release upload "$tag" "$f" --clobber >>"$LOG" 2>&1 \
+      && log "yüklendi: $(basename "$f")" \
+      || fail "yüklenemedi: $(basename "$f")"
+  done
+  log "Release hazır: $tag ✔"
+}
+
+
+# ---------------------------------------------------------------
+# mod: statik IL2CPP yaması + imza + Release
+# ---------------------------------------------------------------
+job_mod() {
+  prepare_inputs || return 1
+  ensure_venv || return 1
+
+  local key_flags; key_flags="$(key_args)"
+  [ -n "$key_flags" ] && log "imza anahtarı: relay/keys/ (sabit)" || log "UYARI: anahtar yok → yeni üretilecek"
+
+  # shellcheck disable=SC2086
+  "$WORK/venv/bin/python" relay/build_mod.py \
+      --base "$WORK/apk/com.cww.cubecraft.apk" \
+      --split "$WORK/apk/config.arm64_v8a.apk" \
+      --manifest "$WORK/apk/manifest.json" \
+      --patches relay/patches-mod1.json \
+      --out-dir "$WORK/mod" \
+      --xapk-name CubeCrafter_mod1.xapk \
+      $key_flags >>"$LOG" 2>&1 || { fail "mod build başarısız"; return 1; }
+
+  local xapk="$WORK/mod/CubeCrafter_mod1.xapk"
+  [ -f "$xapk" ] || { fail "mod XAPK üretilmedi"; return 1; }
+  log "mod XAPK: $(stat -c%s "$xapk") bayt · sha256=$(sha256sum "$xapk" | cut -c1-16)…"
+
+  local files=("$xapk")
+  if [ -f "$WORK/mod/mod-summary.json" ]; then
+    { echo "--- mod özeti ---"; cat "$WORK/mod/mod-summary.json"; } > "$WORK/mod-summary.txt" || true
+    files+=("$WORK/mod-summary.txt")
+  fi
+  publish_release "mod-1.17.14" "CubeCraft 1.17.14 — MOD 1 (para/bilet/elmas)" \
+    "Statik libil2cpp.so yaması: para, bilet ve elmas ödülleri sabit değere (999.948.288) sabitlendi. Yeniden imzalandı (v2+v3); kontrol sürümünün üstüne kurulabilir." \
+    "${files[@]}" || true
+  return 0
+}
 
 # ---------------------------------------------------------------
 # Ana döngü
