@@ -33,7 +33,10 @@ except ImportError:  # pragma: no cover
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 AGENT_JS = os.path.join(HERE, "agent", "il2cpp_agent.js")
-DEFAULT_BRIDGE = os.path.join(HERE, "node_modules", "frida-il2cpp-bridge", "dist", "index.js")
+_VENDORED_BRIDGE = os.path.join(HERE, "vendor", "frida-il2cpp-bridge-0.14.0.js")
+DEFAULT_BRIDGE = _VENDORED_BRIDGE if os.path.exists(_VENDORED_BRIDGE) else os.path.join(
+    HERE, "node_modules", "frida-il2cpp-bridge", "dist", "index.js"
+)
 
 
 # --------------------------------------------------------------------------- #

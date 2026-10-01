@@ -6,8 +6,10 @@ hazır `dist/index.js` dosyası doğrudan yüklenir.
 
 ```
 cubecraft-1.17.14/server/
-├── server.py                  # HTTP panel + Frida köprüsü
-├── agent/il2cpp_agent.js      # RPC ajanı (ara, izle, sabitle, çağır)
+├── server.py                        # HTTP panel + Frida köprüsü
+├── agent/il2cpp_agent.js            # RPC ajanı (ara, izle, sabitle, çağır)
+├── vendor/frida-il2cpp-bridge-*.js  # derlenmiş köprü (npm gerekmez)
+├── gadget/                          # resmi frida-gadget .so.xz (yamalama için)
 └── README.md
 ```
 
@@ -15,21 +17,20 @@ cubecraft-1.17.14/server/
 
 ```bash
 # Termux
-pkg install python nodejs proot-distro
+pkg install python proot-distro
 proot-distro install ubuntu && proot-distro login ubuntu
 
 # Ubuntu (proot) içinde
-apt update && apt install -y python3 python3-pip nodejs npm
-pip install frida                      # (Debian'da gerekirse: --break-system-packages)
+apt update && apt install -y python3 python3-pip
+pip install --break-system-packages frida     # frida 17.x
 mkdir -p ~/panel && cd ~/panel
-# server.py ve agent/ klasörünü buraya kopyalayın (repo’dan)
-npm i frida-il2cpp-bridge             # dist/index.js buradan gelir
-termux-wake-lock                       # arka planda öldürülmesin (Termux tarafı)
+# cubecraft-1.17.14/server/ klasörünün tamamını buraya kopyalayın
+termux-wake-lock                              # arka planda öldürülmesin (Termux tarafı)
 ```
 
-Alternatif: node kullanmak istemezseniz `dist/index.js` dosyasını başka bir yerden kopyalayıp
-`--bridge /yol/index.js` ile verin. Frida sürümü ile `frida-il2cpp-bridge` uyumlu olmalı
-(bu prototip **frida 17.x** + **bridge 0.14.0** ile hazırlandı).
+**Node/npm gerekmez:** `frida-il2cpp-bridge` derlenmiş hâliyle depoda
+(`vendor/frida-il2cpp-bridge-0.14.0.js`) duruyor ve `server.py` onu otomatik kullanır.
+İsterseniz `--bridge /yol/index.js` ile başka bir sürümü verebilirsiniz.
 
 ## 2) Oyuna bağlanma
 
@@ -39,9 +40,10 @@ Alternatif: node kullanmak istemezseniz `dist/index.js` dosyasını başka bir y
 | **Root yok** | APK'ya gömülü `frida-gadget`, "listen" modu | `python3 server.py --host 127.0.0.1:27042 --target Gadget` |
 | USB (PC) | `frida-server` / gadget + USB | `python3 server.py --usb --target com.cww.cubecraft` |
 
-Root yoksa izlenecek yol: `frida-gadget` kütüphanesini APK’ya ekleyip (LIEF ile `DT_NEEDED`
-girişi veya doğrudan `lib/arm64-v8a/` içine) **her iki split’i de** yeniden imzalamak
-(`sign-apk-py` Java gerektirmez) ve `adb install-multiple` / SAI ile kurmak.
+Root yoksa: **hazır yamalı paket** kullanın — `notes/install-gadget.md`.
+`tools/patch_gadget.py` gadget'ı `libmain.so`'ya `DT_NEEDED` olarak ekler ve her iki split'i
+Java'sız (`sign-apk-py`) yeniden imzalar. Kurulum: SAI (XAPK) veya
+`adb install-multiple com.cww.cubecraft.apk config.arm64_v8a.apk`.
 
 ## 3) Panel
 
