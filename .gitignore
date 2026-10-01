@@ -1,0 +1,7 @@
+# --- Büyük / ikili uygulama dosyaları: GitHub 100 MB dosya sınırını aşar, yalnızca yerelde tutulur ---
+cubecraft-1.17.14/*.xapk
+cubecraft-1.17.14/*.apk
+
+# Çıkarılmış/decompile edilmiş geçici çalışma ağaçları
+cubecraft-1.17.14/extracted/
+cubecraft-1.17.14/work/
