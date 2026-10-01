@@ -82,6 +82,19 @@ Not: IL2CPP statik dökümcüler (Il2CppDumper vb.) bu yapıda sendeletildi — 
 Bu yüzden **RVA/offset bilgisini cihaz üstü Frida dökümünden** almak daha güvenilir
 (`Il2Cpp.Method.relativeVirtualAddress`).
 
+## 4.1) Uygulama durumu (bu depoda hazır)
+
+| Adım | Durum |
+| --- | --- |
+| Araç zinciri (lief, sign-apk-py, frida, keystone/capstone) | ✅ kurulu ve doğrulandı |
+| Root'suz yamalama: `tools/patch_gadget.py` | ✅ gerçek APK'larda çalıştırıldı → `patched/CubeCrafter_patched.xapk` |
+| DT_NEEDED + gadget + config gömme | ✅ `libmain.so` → `libfrida-gadget-raw.so`; gadget + `.config.so` eklendi |
+| Java'sız imzalama (v2+v3, aynı anahtar) | ✅ iki APK da doğrulandı |
+| Base APK içeriği | ✅ birebir aynı (yalnızca imza bloğu değişti) |
+| Panel (`server/server.py`) + ajan | ✅ çalışıyor (sandbox'ta HTTP/API testi yapıldı) |
+| Döküm özelliği (sınıf/metod JSON) | ✅ eklendi — cihazda çalıştırılıp döküm paylaşılacak |
+| Kesin mod şablonları (para/süre/reklam/kilit) | ⏳ döküm geldikten sonra |
+
 ## 5) Yol haritası
 
 1. **Hedef seç** (para/elmas, bekleme süreleri, reklam ödülü, kilitli içerik…).
