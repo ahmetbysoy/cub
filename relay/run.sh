@@ -359,7 +359,7 @@ job_mod() {
     files+=("$WORK/mod-summary.txt")
   fi
   publish_release "mod-1.17.14" "CubeCraft 1.17.14 — MOD 1 (para/bilet/elmas)" \
-    "Statik libil2cpp.so yaması: para, bilet ve elmas ödülleri sabit değere (999.948.288) sabitlendi. Yeniden imzalandı (v2+v3); kontrol sürümünün üstüne kurulabilir." \
+    "Statik libil2cpp.so yaması: para, bilet ve elmas ödülleri sabit 9.961.472 değerine sabitlendi (~10 milyon). Yeniden imzalandı (v2+v3); kontrol sürümünün üstüne kurulabilir." \
     "${files[@]}" || true
   return 0
 }
