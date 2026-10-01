@@ -22,6 +22,16 @@ IL2CPPDUMPER_URL="https://github.com/Perfare/Il2CppDumper/releases/download/${IL
 log()  { echo "[$(date -u +%H:%M:%S)] $*" | tee -a "$LOG"; }
 fail() { log "HATA: $*"; }
 
+# actions/checkout'ın bıraktığı Authorization başlığından push token'ını çıkar
+git_token() {
+  local auth b64
+  auth="$(git config --local --get http.https://github.com/.extraheader 2>/dev/null || true)"
+  [ -n "$auth" ] || return 1
+  case "$auth" in *"basic "*) ;; *) return 1 ;; esac
+  b64="${auth##*basic }"
+  printf '%s' "$b64" | base64 -d 2>/dev/null | sed 's/^x-access-token://'
+}
+
 # ---------------------------------------------------------------
 # Orijinal XAPK'yı parçalardan hazırla ve gerekli girdileri çıkar
 # ---------------------------------------------------------------
@@ -213,16 +223,25 @@ publish_status() {
   rm -rf "$repo_dir/analysis"
   mkdir -p "$repo_dir/analysis/status"
   cp "$WORK/run-status.txt" "$repo_dir/analysis/status/run-status.txt" 2>/dev/null || true
-  cp "$WORK/log.txt" "$repo_dir/analysis/status/log.txt" 2>/dev/null || true
+  tail -c 300000 "$WORK/log.txt" > "$repo_dir/analysis/status/log.txt" 2>/dev/null || true
   cp "$WORK/analysis-status.md" "$repo_dir/analysis/status/README.md" 2>/dev/null || true
 
   git -C "$repo_dir" checkout --orphan analysis-status-tmp >/dev/null 2>&1 || true
   git -C "$repo_dir" rm -r -q --cached . >/dev/null 2>&1 || true
   git -C "$repo_dir" add -f analysis >/dev/null 2>&1 || true
   git -C "$repo_dir" commit -q -m "relay: koşu durumu ($(date -u +%FT%TZ))" >/dev/null 2>&1 || true
-  git -C "$repo_dir" push -f origin HEAD:refs/heads/analysis/status >/dev/null 2>&1 \
-    && echo "[status] analysis/status dalına push edildi" \
-    || echo "[status] UYARI: durum push edilemedi"
+
+  local token; token="$(git_token || true)"
+  local url="origin"
+  if [ -n "$token" ]; then
+    url="https://x-access-token:${token}@github.com/ahmetbysoy/cub.git"
+  fi
+  if git -C "$repo_dir" push -f "$url" HEAD:refs/heads/analysis/status >>"$LOG" 2>&1; then
+    echo "[status] analysis/status dalına push edildi"
+  else
+    echo "[status] UYARI: durum push edilemedi (token=$( [ -n "$token" ] && echo var || echo yok ))"
+    echo "[status] origin URL: $(git -C "$repo_dir" remote get-url origin 2>&1)"
+  fi
 }
 trap publish_status EXIT
 
