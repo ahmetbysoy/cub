@@ -1,24 +1,34 @@
 #!/usr/bin/env bash
-# Temporary relay helper: downloads the target file on a GitHub runner,
-# splits it into <=45MB parts and pushes them to the `relay/cubecraft` branch.
+# Relay indirme yardımcısı: dosyayı bir GitHub runner'ında indirir,
+# <=45MB parçalara böler ve geçici bir dala push eder.
+#
+# Kontrol dosyaları:
+#   relay/url.txt      – indirilecek URL
+#   relay/branch.txt   – parçaların push edileceği dal (varsayılan relay/cubecraft)
+#   relay/trigger.txt  – her değişiklikte iş akışını tetikler
 set -uo pipefail
 
 OUT="relay/out"
-URL_FILE="relay/url.txt"
+URL="$(tr -d '\r\n' < relay/url.txt)"
+BRANCH="$(tr -d '\r\n' < relay/branch.txt 2>/dev/null)"
+[ -z "$BRANCH" ] && BRANCH="relay/cubecraft"
+EXPECTED="$(printf '%s' "$URL" | sed -nE 's/.*[?&]full_size=([0-9]+).*/\1/p')"
 mkdir -p "$OUT"
 LOG="$OUT/status.txt"
-URL="$(tr -d '\r\n' < "$URL_FILE")"
+rm -f "$OUT"/part-*
 
 {
   echo "run_id: ${GITHUB_RUN_ID:-local}"
   echo "started: $(date -u +%FT%TZ)"
-  echo "target_host: $(printf '%s' "$URL" | sed -E 's#^(https?://[^/]+)/.*#\1#')"
+  echo "target_url: $URL"
+  echo "target_branch: $BRANCH"
+  echo "expected_bytes: ${EXPECTED:-unknown}"
 } > "$LOG"
 
 curl -fL --retry 3 --retry-delay 5 --max-time 2400 \
   -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36" \
   -e "https://apkpure.com/" \
-  -o /tmp/payload.xapk "$URL" 2>/tmp/curl.log
+  -o /tmp/payload.bin "$URL" 2>/tmp/curl.log
 rc=$?
 
 if [ "$rc" -ne 0 ]; then
@@ -29,15 +39,17 @@ if [ "$rc" -ne 0 ]; then
     tail -40 /tmp/curl.log
   } >> "$LOG"
 else
-  SIZE=$(stat -c%s /tmp/payload.xapk)
-  SHA=$(sha256sum /tmp/payload.xapk | cut -d' ' -f1)
+  SIZE=$(stat -c%s /tmp/payload.bin)
+  SHA=$(sha256sum /tmp/payload.bin | cut -d' ' -f1)
   {
     echo "result: OK"
     echo "bytes: $SIZE"
     echo "sha256: $SHA"
+    if [ -n "$EXPECTED" ] && [ "$SIZE" != "$EXPECTED" ]; then
+      echo "warning: size differs from full_size param"
+    fi
   } >> "$LOG"
-  rm -f "$OUT"/part-*
-  split -b 45M -d -a 3 /tmp/payload.xapk "$OUT/part-"
+  split -b 45M -d -a 3 /tmp/payload.bin "$OUT/part-"
 fi
 
 ls -l "$OUT" >> "$LOG" 2>&1 || true
@@ -45,10 +57,13 @@ echo "finished: $(date -u +%FT%TZ)" >> "$LOG"
 
 git config user.name "relay-bot"
 git config user.email "relay-bot@users.noreply.github.com"
+git config http.postBuffer 524288000
 
-# Publish payload on a throwaway orphan branch (no history, easy to delete later)
-git checkout --orphan relay-payload-tmp >/dev/null 2>&1 || true
-git rm -rf . >/dev/null 2>&1 || true
+# Payload'ı geçici (orphan) bir dala yazar; geçmiş birikmez, sonra silinebilir.
+# NOTE: `rm --cached` indirilen parçaları diskte bırakır (commit için gerekli).
+git checkout --orphan relay-payload-tmp
+git rm -r -q --cached .
 git add -A "$OUT"
-git commit -m "relay payload" >/dev/null 2>&1 || echo "nothing to commit"
-git push -f origin "HEAD:refs/heads/relay/cubecraft"
+git commit -m "relay payload ($BRANCH)" || echo "nothing to commit"
+git push -f origin "HEAD:refs/heads/$BRANCH"
+echo "pushed → $BRANCH"

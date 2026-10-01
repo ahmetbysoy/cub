@@ -1,1 +1,1 @@
-https://github.com/frida/frida/releases/download/17.19.0/frida-gadget-17.19.0-android-arm64.so.xz
+https://data.winudf.com/XAPK/Y29tLmN3dy5jdWJlY3JhZnRfMTA2XzRiNGJlMmVi?_p=Y29tLmN3dy5jdWJlY3JhZnQ%3D&download_id=otr_1671105644527466&filename=CubeCrafter_1.17.14_APKPure.xapk&full_size=262785289&is_hot=false&k=8f274bdb83d43b8fee609b982b0406d06ac0b717&package_name=com.cww.cubecraft&source=web&token=1790841879-5510de3de1-0-83e8abc79a89ba818608fa7c879bc681
