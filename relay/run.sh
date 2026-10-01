@@ -32,6 +32,10 @@ git_token() {
   printf '%s' "$b64" | base64 -d 2>/dev/null | sed 's/^x-access-token://'
 }
 
+# Git kimliği: CI'da tanımlı değilse orphan commit'ler başarısız olur ("src refspec HEAD does not match any")
+git config user.name  >/dev/null 2>&1 || git config user.name  "relay-bot" >/dev/null 2>&1 || true
+git config user.email >/dev/null 2>&1 || git config user.email "relay-bot@users.noreply.github.com" >/dev/null 2>&1 || true
+
 # ---------------------------------------------------------------
 # Orijinal XAPK'yı parçalardan hazırla ve gerekli girdileri çıkar
 # ---------------------------------------------------------------
@@ -84,6 +88,20 @@ job_dump() {
   unzip -o -q "$WORK/dumper.zip" -d "$WORK/dumper" || { fail "dumper açılamadı"; return 1; }
   log "dumper içeriği: $(ls "$WORK/dumper" | tr '\n' ' ')"
 
+  # Etkileşimsiz ortam ayarları: "Press any key" beklemesini kapat (aksi halde rc=134),
+  # DummyDll üretimini kapat (zaten atılıyor → hız/disk)
+  if [ -f "$WORK/dumper/config.json" ]; then
+    python3 - "$WORK/dumper/config.json" >>"$LOG" 2>&1 <<'PY' || true
+import json, sys
+p = sys.argv[1]
+c = json.load(open(p))
+c["RequireAnyKey"] = False
+c["GenerateDummyDll"] = False
+json.dump(c, open(p, "w"), indent=2)
+print("config.json güncellendi:", {k: c.get(k) for k in ("RequireAnyKey", "GenerateDummyDll", "GenerateStruct")})
+PY
+  fi
+
   log "dotnet kontrolü:"
   if ! command -v dotnet >/dev/null 2>&1; then
     log "dotnet yok → kuruluyor (apt)"
@@ -95,7 +113,14 @@ job_dump() {
   log "döküm alınıyor…"
   local rc=0
   ( cd "$WORK/dumper" && DOTNET_ROLL_FORWARD=LatestMajor DOTNET_NOLOGO=1 \
-      dotnet Il2CppDumper.dll "$so" "$md" "$WORK/dump-out" ) >>"$LOG" 2>&1 || rc=$?
+      dotnet Il2CppDumper.dll "$so" "$md" "$WORK/dump-out" </dev/null ) >>"$LOG" 2>&1 || rc=$?
+
+  if [ "$rc" -ne 0 ]; then
+    # Yedek yol: pty üzerinden çalıştır (Console.ReadKey gerektiren sürümler için)
+    log "ilk deneme rc=$rc → pty ile yeniden deneniyor"
+    ( cd "$WORK/dumper" && DOTNET_ROLL_FORWARD=LatestMajor DOTNET_NOLOGO=1 \
+        script -qec "dotnet Il2CppDumper.dll '$so' '$md' '$WORK/dump-out'" /dev/null </dev/null ) >>"$LOG" 2>&1 || rc=$?
+  fi
 
   if [ "$rc" -ne 0 ] || [ -z "$(ls -A "$WORK/dump-out" 2>/dev/null)" ]; then
     fail "döküm başarısız (rc=$rc)"
@@ -129,14 +154,12 @@ job_dump() {
     echo "Dosyalar: dump.cs · script.json · stringliteral.json · il2cpp.h"
   } > "$WORK/pub/analysis/dump/README.md"
 
-  git config user.name "relay-bot"
-  git config user.email "relay-bot@users.noreply.github.com"
   git -C "$repo_dir" checkout --orphan analysis-dump-tmp >/dev/null 2>&1
   git -C "$repo_dir" rm -r -q --cached . >/dev/null 2>&1 || true
   mkdir -p "$repo_dir/analysis"
   cp -r "$WORK/pub/analysis/." "$repo_dir/analysis/"
   git -C "$repo_dir" add -f analysis
-  git -C "$repo_dir" commit -q -m "analysis: IL2CPP statik döküm (CubeCraft 1.17.14)" || fail "commit boş?"
+  git -C "$repo_dir" -c user.name=relay-bot -c user.email=relay-bot@users.noreply.github.com commit -q -m "analysis: IL2CPP statik döküm (CubeCraft 1.17.14)" || fail "commit boş?"
   git -C "$repo_dir" push -f origin HEAD:refs/heads/analysis/dump || { fail "push edilemedi"; return 1; }
   log "döküm analysis/dump dalına push edildi ✔"
   return 0
@@ -264,7 +287,7 @@ publish_status() {
   git -C "$repo_dir" checkout --orphan analysis-status-tmp >/dev/null 2>&1 || true
   git -C "$repo_dir" rm -r -q --cached . >/dev/null 2>&1 || true
   git -C "$repo_dir" add -f analysis >/dev/null 2>&1 || true
-  git -C "$repo_dir" commit -q -m "relay: koşu durumu ($(date -u +%FT%TZ))" >/dev/null 2>&1 || true
+  git -C "$repo_dir" -c user.name=relay-bot -c user.email=relay-bot@users.noreply.github.com commit -q -m "relay: koşu durumu ($(date -u +%FT%TZ))" >/dev/null 2>&1 || true
 
   local token; token="$(git_token || true)"
   local url="origin"
