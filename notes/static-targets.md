@@ -88,3 +88,24 @@ Yama tanımı: `relay/patches-mod1.json` · build: `relay/build_mod.py` · Relea
 Toplam değişen byte: 44 MB'lık `libil2cpp.so` içinde **30 bayt** (yalnızca yukarıdaki 6 nokta).
 Doğrulama: yamalı `libil2cpp.so` sha256 = `06fe14cbffc8d7fe600487f229cf7be89787e7ed4ce5b50970ebe1946e2b054d`
 (CI çıktısı ile birebir aynı). İmza: v2+v3, `CN=CubeCraft Mod Debug` (kontrol sürümüyle aynı anahtar).
+
+---
+
+## Uygulanan sürüm: mod2 (yayınlandı)
+
+`relay/patches-mod2.json` = mod1 yamaları (6 hedef) **+** aşağıdaki 3 yeni hedef (kümülatif).
+Release: `mod2-1.17.14` · yamalı `libil2cpp.so` sha256 = `8537e51dbdf3b0ea15f0c3e88c260b7ea8ea347888a87e487af40c2df7fee8d4`
+
+| # | Adres | Değişiklik | Anlam |
+|---|---|---|---|
+| 7 | `0xAF3B34` | gövde → `mov w0,#5; ret` | Reklam izleme ödülü **×5** (`RewardedRemoteInfo.RewardsMultiply` yerine sabit) |
+| 8 | `0xFE3F4C` | `ldrb w0,[x0,#0x20]` → `mov w0,#1; ret` | `BaseAspect.IsInfinite` → **true** (tüm reklam bonusları "sonsuz") |
+| 9 | `0xFE26D4` | gövde → `mov w0,#0; ret` | `BaseAspect.IsFinished` → **false** (bonus süresi hiç bitmez) |
+
+Kapsam: sırt çantası (Backpack), büyülü aletler (EnchantedTools), binek hayvanı (RidingAnimal),
+ekstra çiftçiler (SeveralFarmers) ve fabrika hızlandırma (SpeedUpSeveralFactories) — hepsi
+`BaseAspect` tabanlı olduğu için tek noktadan kapsanır.
+
+Not: Kilitli içerik (eşya/yükseltme/hayvan) oyunda ağırlıkla **para ve elmas** ile açılır; mod1'in
+sabit para/elmas değerleriyle bu kilitler pratikte kalkar. Kalan gerçek kilit: biyom/seviye ilerlemesi
+(`LevelsController.FindLastLevel` + PlayerPrefs anahtarı `BMS_CLDKN`) — riskli olduğu için yamalanmadı.
