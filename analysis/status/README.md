@@ -1,0 +1,9 @@
+# relay koşu durumu
+
+```
+run: 36865930522
+repo: 6a806e8
+started: 2026-10-01T13:03:01Z
+result: MOD3_OK
+finished: 2026-10-01T13:03:52Z
+```

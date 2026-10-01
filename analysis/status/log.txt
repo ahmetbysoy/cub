@@ -1,0 +1,48 @@
+[13:03:01] iş listesi: # relay/run.sh tarafından çalıştırılacak işler (satır başına bir iş) #   control → içeriği değiştirmeden yeniden imzala (kontrol testi) #   mod     → mod1: para/bilet/elmas sabit #   mod2    → mod2: mod1 + reklam ödülü ×5 + süresiz bonuslar #   mod3    → mod3: mod2 + reklamsız anında ödül #   dump    → Il2CppDumper statik döküm mod3 
+[13:03:01] === İŞ: mod3 ===
+[13:03:01] orijinal XAPK hazırlanıyor (relay/cubecraft dalı)…
+[13:03:13] orijinal XAPK: 262785289 bayt · sha256=39150c787073b4f8…
+[13:03:14] XAPK içeriği: com.cww.cubecraft.apk config.arm64_v8a.apk manifest.json 
+[13:03:14] Python bağımlılıkları (venv) kuruluyor…
+[13:03:22] imza anahtarı: relay/keys/ (sabit)
+[mod] yama dosyası: relay/patches-mod3.json (16 hedef, sabit mod1+mod2 + reklamsız anında ödül)
+[mod] libil2cpp.so: 44415352 bayt · sha256=f1b5df4de507aae5…
+[mod] yama uygulandı: para getter → sabit 9961472 @0x1dc3728 (8 bayt)
+[mod] yama uygulandı: para değişimi olayı sabit değeri yayınlar @0x1dc3800 (4 bayt)
+[mod] yama uygulandı: para değişimi olayı sabit değeri yayınlar @0x1dc38ec (4 bayt)
+[mod] yama uygulandı: bilet getter → sabit 9961472 @0xaf44b4 (8 bayt)
+[mod] yama uygulandı: seviye sonu elmas ödülü → sabit @0xcffe80 (8 bayt)
+[mod] yama uygulandı: görev elmas ödülü → sabit @0xcfff30 (8 bayt)
+[mod] yama uygulandı: reklam ödülü çarpanı → 5 @0xaf3b34 (8 bayt)
+[mod] yama uygulandı: reklam bonusu 'sonsuz' sayılır @0xfe3f4c (8 bayt)
+[mod] yama uygulandı: reklam bonusu hiç bitmez @0xfe26d4 (8 bayt)
+[mod] yama uygulandı: reklam 'hazır' kontrolü → her zaman hazır @0xaf3be4 (8 bayt)
+[mod] yama uygulandı: ödül uygun mu → her zaman uygun (butonlar aktif) @0xaf3f68 (8 bayt)
+[mod] yama uygulandı: reklam yerine bilet yoluna zorla (anında ödül) @0xaf4174 (4 bayt)
+[mod] yama uygulandı: bilet sayısı şartını kaldır @0xaf41b8 (4 bayt)
+[mod] yama uygulandı: SDK 'reklam var mı' → her zaman var @0x12d2b2c (8 bayt)
+[mod] yama uygulandı: SDK yerleşim kontrolü → her zaman var @0x12d2d5c (8 bayt)
+[mod] yama uygulandı: reklam yoksa callback(false) yerine callback(true) → ödül anında verilir @0x12d2f3c (4 bayt)
+[mod] yama doğrulaması: TAMAM
+[mod] base  v1 temizliği: 0 girdi atıldı
+[mod] split yeniden paketlendi (libil2cpp.so yamalı)
+[mod] anahtar kullanıldı: relay/keys/cubecraft-mod.pem
+[mod] iki APK imzalandı (v2+v3)
+[mod] doğrulandı: com.cww.cubecraft.apk → {'signers': [{'scheme': 'v2', 'subject': 'CN=CubeCraft Mod Debug', 'serial_number': 207877834927256231755450532378649853027879219202}, {'scheme': 'v3', 'subject': 'CN=CubeCraft Mod Debug', 'serial_number': 207877834927256231755450532378649853027879219202, 'min_sdk_version': 28, 'max_sdk_version': 2147483647}], 'schemes': ['v2', 'v3']}
+[mod] doğrulandı: config.arm64_v8a.apk → {'signers': [{'scheme': 'v2', 'subject': 'CN=CubeCraft Mod Debug', 'serial_number': 207877834927256231755450532378649853027879219202}, {'scheme': 'v3', 'subject': 'CN=CubeCraft Mod Debug', 'serial_number': 207877834927256231755450532378649853027879219202, 'min_sdk_version': 28, 'max_sdk_version': 2147483647}], 'schemes': ['v2', 'v3']}
+[mod] imzalı paket içi yama kontrolü: TAMAM
+[mod] yamalı libil2cpp.so sha256=732aaf1f37b62d17e0e30d6bbbc675730f7827b75208d8dad9f5eb76b3ccb767 (yerel doğrulanmış build ile karşılaştırılabilir)
+[mod] imzalı paketteki libil2cpp.so sha256=732aaf1f37b62d17e0e30d6bbbc675730f7827b75208d8dad9f5eb76b3ccb767
+[mod] XAPK: /tmp/cc/mod/CubeCrafter_mod3.xapk (149.2 MB) sha256=70ad48b849da09b8…
+[mod] bitti ✔
+[13:03:41] mod XAPK: CubeCrafter_mod3.xapk · 156427672 bayt · sha256=70ad48b849da09b8…
+https://github.com/ahmetbysoy/cub/releases/tag/mod3-1.17.14
+[13:03:51] yüklendi: CubeCrafter_mod3.xapk
+[13:03:52] yüklendi: mod-summary.txt
+[13:03:52] Release hazır: mod3-1.17.14 ✔
+[13:03:52] bitti. Özet:
+run: 36865930522
+repo: 6a806e8
+started: 2026-10-01T13:03:01Z
+result: MOD3_OK
+finished: 2026-10-01T13:03:52Z
