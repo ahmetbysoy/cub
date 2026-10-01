@@ -109,3 +109,25 @@ ekstra çiftçiler (SeveralFarmers) ve fabrika hızlandırma (SpeedUpSeveralFact
 Not: Kilitli içerik (eşya/yükseltme/hayvan) oyunda ağırlıkla **para ve elmas** ile açılır; mod1'in
 sabit para/elmas değerleriyle bu kilitler pratikte kalkar. Kalan gerçek kilit: biyom/seviye ilerlemesi
 (`LevelsController.FindLastLevel` + PlayerPrefs anahtarı `BMS_CLDKN`) — riskli olduğu için yamalanmadı.
+
+---
+
+## Uygulanan sürüm: mod3 (yayınlandı) — reklamsız anında ödül
+
+Sorun: yan yüklenmiş APK'da reklam dolmuyor → oyun "Ads not ready" diyip ödül vermiyor.
+Çözüm: reklam hazırlık kontrolleri hep olumlu; ödül callback'i reklamsız tetiklenir.
+`relay/patches-mod3.json` = mod2 (9 hedef) + 7 yeni = **16 hedef**.
+Yamalı `libil2cpp.so` sha256 = `732aaf1f37b62d17e0e30d6bbbc675730f7827b75208d8dad9f5eb76b3ccb767`
+
+| # | Adres | Değişiklik | Anlam |
+|---|---|---|---|
+| 10 | `0xAF3BE4` | `RewardReady` gövdesi → `mov w0,#1; ret` | Tüm "reklam hazır mı" kontrolleri (10 çağrı yeri + `AdsProceedButton.IsAdsReady`) hep **hazır** |
+| 11 | `0xAF3F68` | `RewardAvaileable` gövdesi → `mov w0,#1; ret` | Ödül butonları (`ResourcesGenerator.Start`, `BackPackSpawner.Start`, `RidingAnimalController.Start`, `EnchantedToolsSpawner.Start`) hep aktif |
+| 12 | `0xAF4174` | `tbz w22,#0,#0xaf420c` → `nop` | `ShowRewarded`'da reklam yolu yerine **bilet yolu** çalışır |
+| 13 | `0xAF41B8` | `b.lt #0xaf420c` → `nop` | Bilet sayısı şartı kaldırıldı |
+| 14 | `0x12D2B2C` | `AdsManager.IsRewardedAvailable` → `mov w0,#1; ret` | SDK katmanı "reklam var" der |
+| 15 | `0x12D2D5C` | `AdsManager.IsRewardedPlacementAvailable` → `mov w0,#1; ret` | Yerleşim kontrolü de olumlu |
+| 16 | `0x12D2F3C` | `mov w1,wzr` → `mov w1,#1` | Reklam gösterilemezse callback(false) yerine **callback(true)** → ödül anında verilir |
+
+Akış (kanıtlanmış): `AdsItemPanel.OnPressShowAds` → `IsAdsReady`(→RewardReady) → `RewardReady` → `RewardedController.ShowRewarded`
+→ (yama 12/13) `OnCloseCallback(true)` → `onShowed(true)` + `OnRewardedShowed(rewardType)` → panel ödülü verir.
