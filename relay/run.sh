@@ -210,6 +210,41 @@ job_control() {
 # ---------------------------------------------------------------
 # Durum/log yayını — her koşulda çalışır (trap)
 # ---------------------------------------------------------------
+# Durum dosyalarını GitHub API ile analysis/status dalına yaz (git push'a bağımlı değil)
+api_publish() {
+  local repo="ahmetbysoy/cub" token
+  token="${GH_TOKEN:-$(git_token || true)}"
+  [ -n "$token" ] || { echo "[api] token yok"; return 1; }
+  export GH_TOKEN="$token" GITHUB_TOKEN="$token"
+
+  gh api "repos/$repo/branches/analysis/status" >/dev/null 2>&1 || {
+    local base; base="$(gh api "repos/$repo/branches/main" --jq '.commit.sha' 2>/dev/null)" || { echo "[api] main sha yok"; return 1; }
+    gh api -X POST "repos/$repo/git/refs" -f ref="refs/heads/analysis/status" -f sha="$base" >/dev/null 2>&1 \
+      && echo "[api] dal oluşturuldu" || echo "[api] dal oluşturma atlandı"
+  }
+
+  local pair name file sha
+  for pair in "run-status.txt:$WORK/run-status.txt" "log.txt:$WORK/log.txt" "README.md:$WORK/analysis-status.md"; do
+    name="analysis/status/${pair%%:*}"; file="${pair#*:}"
+    [ -f "$file" ] || continue
+    if [ "$name" = "analysis/status/log.txt" ]; then
+      tail -c 300000 "$file" > "$WORK/api-tmp" 2>/dev/null && file="$WORK/api-tmp"
+    fi
+    sha="$(gh api "repos/$repo/contents/$name?ref=analysis/status" --jq '.sha' 2>/dev/null || true)"
+    if python3 -c 'import base64,json,sys
+p={"message":"relay durum guncellemesi","branch":"analysis/status","path":sys.argv[3],
+   "content":base64.b64encode(open(sys.argv[1],"rb").read()).decode()}
+if sys.argv[4]: p["sha"]=sys.argv[4]
+open(sys.argv[2],"w").write(json.dumps(p))' "$file" "$WORK/payload.json" "$name" "$sha" 2>>"$LOG"; then
+      gh api -X PUT "repos/$repo/contents/$name" --input "$WORK/payload.json" >/dev/null 2>>"$LOG" \
+        && echo "[api] yazıldı: $name" || echo "[api] yazılamadı: $name"
+    else
+      echo "[api] payload üretilemedi: $name"
+    fi
+  done
+  return 0
+}
+
 publish_status() {
   local repo_dir="$PWD"
   {
@@ -237,11 +272,18 @@ publish_status() {
     url="https://x-access-token:${token}@github.com/ahmetbysoy/cub.git"
   fi
   if git -C "$repo_dir" push -f "$url" HEAD:refs/heads/analysis/status >>"$LOG" 2>&1; then
-    echo "[status] analysis/status dalına push edildi"
+    echo "[status] git push ile analysis/status güncellendi"
   else
-    echo "[status] UYARI: durum push edilemedi (token=$( [ -n "$token" ] && echo var || echo yok ))"
-    echo "[status] origin URL: $(git -C "$repo_dir" remote get-url origin 2>&1)"
+    echo "[status] git push başarısız (token=$( [ -n "$token" ] && echo var || echo yok )) → API deneniyor"
   fi
+
+  # git push çalışmasa bile API ile yayınla (sandbox'ın log kanalı burası)
+  api_publish || echo "[status] API yayını da başarısız"
+
+  # Annotation: koşu sayfasında/API'de görünür (log uç noktası sandbox'tan kapalı)
+  local annot
+  annot="$(tail -c 600 "$WORK/run-status.txt" 2>/dev/null | tr '\n' '|' | sed 's/%/%25/g')"
+  [ -n "$annot" ] && echo "::warning title=relay-durum::$annot"
 }
 trap publish_status EXIT
 
