@@ -6,12 +6,13 @@ APKPure'dan indirilen `CubeCrafter_1.17.14_APKPure.xapk` paketinin yerel çalı�
 
 ## Dosyalar
 
-| Dosya | Boyut | Not |
-| --- | --- | --- |
-| `CubeCrafter_1.17.14_APKPure.xapk` | 262.785.289 B | sha256 `39150c787073b4f8a1931e3dc0c4d399d6f2f73472f6cda1c0f630f4effad8ac` |
-| `com.cww.cubecraft.apk` | 225 MB | base APK — Unity IL2CPP + 11 adet `classesN.dex` |
-| `config.arm64_v8a.apk` | 26 MB | native kütüphaneler: `libil2cpp.so` (44 MB), `libunity.so`, reklam SDK'ları |
-| `manifest.json` | 3.1 KB | XAPK manifesti (sürüm, split listesi) |
+| Nerede | Ne |
+| --- | --- |
+| `/home/user/out/cubecraft/` | ağır dosyalar (XAPK, APK'lar, açılmış ağaçlar). Snapshot ve git dışında tutulur. |
+| `cubecraft-1.17.14/manifest.json` | XAPK manifesti (sürüm, split listesi) |
+| `cubecraft-1.17.14/notes/inventory.md` | paket, Unity ve kod envanteri |
+
+Ağır dosyaların ayrıntılı yerleşimi ve boyutları için `notes/inventory.md` dosyasına bakın.
 
 ## Paket bilgisi
 
@@ -24,6 +25,7 @@ APKPure'dan indirilen `CubeCrafter_1.17.14_APKPure.xapk` paketinin yerel çalı�
 
 ## Git notu
 
-GitHub'ın **100 MB'lık tek dosya sınırı** nedeniyle `*.xapk` ve `*.apk` dosyaları bu repoya
-push edilemez; `.gitignore` ile hariç tutulmuştur ve yalnızca yerelde tutulur. Repoda yalnızca
-küçük metin dosyaları (manifest, notlar, betikler, yama/patch çıktıları) saklanmalıdır.
+GitHub'ın **100 MB'lık tek dosya sınırı** nedeniyle `*.xapk` ve `*.apk` dosyaları repoya
+push edilemez; ağır dosyalar `/home/user/out/cubecraft` altında (snapshot dışı) tutulur ve
+`.gitignore` ile hariç bırakılır. Repoda yalnızca küçük metin dosyaları (manifest, notlar,
+betikler, yama/patch çıktıları) saklanır.
