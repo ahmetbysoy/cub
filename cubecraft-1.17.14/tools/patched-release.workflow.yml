@@ -1,0 +1,33 @@
+name: patched-release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [deliver/cubecraft]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parçaları birleştir ve doğrula
+        run: |
+          set -euo pipefail
+          cat deliver/part-00 deliver/part-01 > CubeCrafter_patched.xapk
+          echo "boyut: $(stat -c%s CubeCrafter_patched.xapk)"
+          echo "191fc7260aaa6bc301d45d18d5e30d70ddf219b077088a0662e0fbc97e499e10  CubeCrafter_patched.xapk" | sha256sum -c -
+
+      - name: Release oluştur ve dosyayı yükle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view cubecraft-1.17.14 >/dev/null 2>&1 \
+            || gh release create cubecraft-1.17.14 \
+                 --title "CubeCraft 1.17.14 (gadget'lı XAPK)" \
+                 --notes "Root'suz Frida gadget gömülü yamalı XAPK. sha256: 191fc7260aaa6bc301d45d18d5e30d70ddf219b077088a0662e0fbc97e499e10 — boyut: 166.497.613 bayt. Kurulum: notes/install-gadget.md"
+          gh release upload cubecraft-1.17.14 CubeCrafter_patched.xapk --clobber

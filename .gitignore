@@ -1,0 +1,15 @@
+# --- Büyük / ikili dosyalar: GitHub 100 MB dosya sınırı ve snapshot boyutu ---
+# Yerel ağır çalışma dizini: /home/user/out/cubecraft  (bkz. notes/inventory.md)
+*.xapk
+*.apk
+*.so
+*.dex
+
+# Çıkarılmış çalışma ağaçları
+cubecraft-1.17.14/extracted/
+cubecraft-1.17.14/work/
+out/
+
+# Python önbellekleri
+__pycache__/
+*.pyc

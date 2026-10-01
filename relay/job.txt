@@ -1,0 +1,7 @@
+# relay/run.sh tarafından çalıştırılacak işler (satır başına bir iş)
+#   control → içeriği değiştirmeden yeniden imzala (kontrol testi)
+#   mod     → mod1: para/bilet/elmas sabit
+#   mod2    → mod2: mod1 + reklam ödülü ×5 + süresiz bonuslar
+#   mod3    → mod3: mod2 + reklamsız anında ödül
+#   dump    → Il2CppDumper statik döküm
+mod3

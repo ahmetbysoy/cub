@@ -1,0 +1,49 @@
+{
+  "name": "cubecraft-1.17.14-mod1",
+  "value": "0x00980000 (9961472)",
+  "note": "Para/bilet/elmas sabit 9.961.472 değerine sabitlendi (tek komutla yazılabilen ~10 milyon).",
+  "targets": [
+    {
+      "desc": "para getter → sabit 9961472",
+      "off": "0x1dc3728",
+      "old": "00 18 40 b9 c0 03 5f d6",
+      "new": "00 13 a0 52 c0 03 5f d6",
+      "size": 8
+    },
+    {
+      "desc": "para değişimi olayı sabit değeri yayınlar",
+      "off": "0x1dc3800",
+      "old": "e1 1a 40 b9",
+      "new": "01 13 a0 52",
+      "size": 4
+    },
+    {
+      "desc": "para değişimi olayı sabit değeri yayınlar",
+      "off": "0x1dc38ec",
+      "old": "a1 1a 40 b9",
+      "new": "01 13 a0 52",
+      "size": 4
+    },
+    {
+      "desc": "bilet getter → sabit 9961472",
+      "off": "0xaf44b4",
+      "old": "00 20 40 b9 c0 03 5f d6",
+      "new": "00 13 a0 52 c0 03 5f d6",
+      "size": 8
+    },
+    {
+      "desc": "seviye sonu elmas ödülü → sabit",
+      "off": "0xcffe80",
+      "old": "f7 5b bd a9 f5 53 01 a9",
+      "new": "00 13 a0 52 c0 03 5f d6",
+      "size": 8
+    },
+    {
+      "desc": "görev elmas ödülü → sabit",
+      "off": "0xcfff30",
+      "old": "f7 5b bd a9 f5 53 01 a9",
+      "new": "00 13 a0 52 c0 03 5f d6",
+      "size": 8
+    }
+  ]
+}
