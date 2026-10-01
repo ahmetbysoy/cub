@@ -64,6 +64,20 @@ git config http.postBuffer 524288000
 git checkout --orphan relay-payload-tmp
 git rm -r -q --cached .
 git add -A "$OUT"
-git commit -m "relay payload ($BRANCH)" || echo "nothing to commit"
+if git commit -q -m "relay payload ($BRANCH)"; then
+  echo "commit: ok" >> "$LOG"
+else
+  echo "commit: nothing-to-commit/failed" >> "$LOG"
+fi
+
+if git push -f origin "HEAD:refs/heads/$BRANCH" 2>&1 | tee -a "$LOG"; then
+  echo "push: ok → $BRANCH" >> "$LOG"
+else
+  echo "push: FAILED → $BRANCH" >> "$LOG"
+  exit 1
+fi
+
+echo "finished: $(date -u +%FT%TZ)" >> "$LOG"
+git add -A "$OUT" && git commit -q --amend -m "relay payload ($BRANCH)" --no-edit
 git push -f origin "HEAD:refs/heads/$BRANCH"
 echo "pushed → $BRANCH"
