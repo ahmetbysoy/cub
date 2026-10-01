@@ -6,6 +6,9 @@
 #   relay/url.txt      – indirilecek URL
 #   relay/branch.txt   – parçaların push edileceği dal (varsayılan relay/cubecraft)
 #   relay/trigger.txt  – her değişiklikte iş akışını tetikler
+#
+# NOT: Çıktı dizini "relay/out" — .gitignore'daki `out/` kuralına takılmaması için
+#      dosyalar `git add -f` ile zorla eklenir.
 set -uo pipefail
 
 OUT="relay/out"
@@ -15,7 +18,7 @@ BRANCH="$(tr -d '\r\n' < relay/branch.txt 2>/dev/null)"
 EXPECTED="$(printf '%s' "$URL" | sed -nE 's/.*[?&]full_size=([0-9]+).*/\1/p')"
 mkdir -p "$OUT"
 LOG="$OUT/status.txt"
-rm -f "$OUT"/part-*
+rm -f "$OUT"/part-* "$LOG"
 
 {
   echo "run_id: ${GITHUB_RUN_ID:-local}"
@@ -53,31 +56,30 @@ else
 fi
 
 ls -l "$OUT" >> "$LOG" 2>&1 || true
-echo "finished: $(date -u +%FT%TZ)" >> "$LOG"
 
 git config user.name "relay-bot"
 git config user.email "relay-bot@users.noreply.github.com"
 git config http.postBuffer 524288000
 
-# Payload'ı geçici (orphan) bir dala yazar; geçmiş birikmez, sonra silinebilir.
-# NOTE: `rm --cached` indirilen parçaları diskte bırakır (commit için gerekli).
-git checkout --orphan relay-payload-tmp
-git rm -r -q --cached .
-git add -A "$OUT"
+# Yük ayrı bir (orphan) geçmişe yazılır: geçmiş birikmez, dal sonra silinebilir.
+git checkout --orphan relay-payload-tmp >/dev/null 2>&1 || true
+git rm -r -q --cached . >/dev/null 2>&1 || true
+
+# .gitignore `out/` kuralına rağmen ekle
+git add -f -A "$OUT"
+
 if git commit -q -m "relay payload ($BRANCH)"; then
   echo "commit: ok" >> "$LOG"
 else
-  echo "commit: nothing-to-commit/failed" >> "$LOG"
+  echo "commit: FAILED (eklenecek dosya yok?)" >> "$LOG"
 fi
+git add -f "$LOG" && git commit -q --amend --no-edit
 
 if git push -f origin "HEAD:refs/heads/$BRANCH" 2>&1 | tee -a "$LOG"; then
-  echo "push: ok → $BRANCH" >> "$LOG"
+  echo "push: ok -> $BRANCH" >> "$LOG"
+  echo "DONE: $BRANCH"
 else
-  echo "push: FAILED → $BRANCH" >> "$LOG"
+  echo "push: FAILED -> $BRANCH" >> "$LOG"
+  echo "FAILED: push reddedildi"
   exit 1
 fi
-
-echo "finished: $(date -u +%FT%TZ)" >> "$LOG"
-git add -A "$OUT" && git commit -q --amend -m "relay payload ($BRANCH)" --no-edit
-git push -f origin "HEAD:refs/heads/$BRANCH"
-echo "pushed → $BRANCH"
