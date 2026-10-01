@@ -27,10 +27,15 @@ fail() { log "HATA: $*"; }
 # ---------------------------------------------------------------
 prepare_inputs() {
   log "orijinal XAPK hazırlanıyor (relay/cubecraft dalı)…"
-  git fetch -q origin relay/cubecraft || { fail "fetch başarısız"; return 1; }
+  # actions/checkout dar bir refspec kurar; bu yüzden hedef dalı AÇIK refspec ile çekiyoruz
+  git fetch -q origin "+refs/heads/relay/cubecraft:refs/remotes/origin/relay/cubecraft" \
+    || { fail "fetch başarısız"; return 1; }
+  git rev-parse --verify -q origin/relay/cubecraft >/dev/null \
+    || { fail "origin/relay/cubecraft ref'i yok"; return 1; }
 
   rm -rf "$WORK/orig"; mkdir -p "$WORK/orig"
-  (cd "$WORK/orig" && git archive origin/relay/cubecraft relay/out | tar -x) || { fail "arşiv açılamadı"; return 1; }
+  git archive origin/relay/cubecraft relay/out | tar -x -C "$WORK/orig" \
+    || { fail "arşiv açılamadı"; return 1; }
 
   cat "$WORK/orig"/relay/out/part-* > "$WORK/original.xapk" || { fail "parçalar birleştirilemedi"; return 1; }
   local size sha
@@ -124,7 +129,6 @@ job_dump() {
   git -C "$repo_dir" commit -q -m "analysis: IL2CPP statik döküm (CubeCraft 1.17.14)" || fail "commit boş?"
   git -C "$repo_dir" push -f origin HEAD:refs/heads/analysis/dump || { fail "push edilemedi"; return 1; }
   log "döküm analysis/dump dalına push edildi ✔"
-  echo "result: DUMP_OK" >> "$WORK/run-status.txt"
   return 0
 }
 
@@ -161,6 +165,9 @@ job_control() {
   log "kontrol XAPK: $(stat -c%s "$xapk") bayt · sha256=$(sha256sum "$xapk" | cut -c1-16)…"
 
   # ---- Release oluştur (checkout token'ı ile) ----
+  if [ -n "${CC_SKIP_RELEASE:-}" ]; then
+    log "CC_SKIP_RELEASE ayarlı → Release adımı atlandı (yerel test)"
+  else
   local auth b64 token
   auth="$(git config --local --get http.https://github.com/.extraheader 2>/dev/null || true)"
   token=""
@@ -185,22 +192,56 @@ job_control() {
       gh release upload "$tag" "$WORK/control-summary.txt" --clobber >>"$LOG" 2>&1 || true
     fi
   fi
+  fi
 
-  echo "result: CONTROL_OK" >> "$WORK/run-status.txt"
   return 0
 }
+
+# ---------------------------------------------------------------
+# Durum/log yayını — her koşulda çalışır (trap)
+# ---------------------------------------------------------------
+publish_status() {
+  local repo_dir="$PWD"
+  {
+    echo "# relay koşu durumu"
+    echo
+    echo '```'
+    cat "$WORK/run-status.txt" 2>/dev/null || echo "(run-status yok)"
+    echo '```'
+  } > "$WORK/analysis-status.md"
+
+  rm -rf "$repo_dir/analysis"
+  mkdir -p "$repo_dir/analysis/status"
+  cp "$WORK/run-status.txt" "$repo_dir/analysis/status/run-status.txt" 2>/dev/null || true
+  cp "$WORK/log.txt" "$repo_dir/analysis/status/log.txt" 2>/dev/null || true
+  cp "$WORK/analysis-status.md" "$repo_dir/analysis/status/README.md" 2>/dev/null || true
+
+  git -C "$repo_dir" checkout --orphan analysis-status-tmp >/dev/null 2>&1 || true
+  git -C "$repo_dir" rm -r -q --cached . >/dev/null 2>&1 || true
+  git -C "$repo_dir" add -f analysis >/dev/null 2>&1 || true
+  git -C "$repo_dir" commit -q -m "relay: koşu durumu ($(date -u +%FT%TZ))" >/dev/null 2>&1 || true
+  git -C "$repo_dir" push -f origin HEAD:refs/heads/analysis/status >/dev/null 2>&1 \
+    && echo "[status] analysis/status dalına push edildi" \
+    || echo "[status] UYARI: durum push edilemedi"
+}
+trap publish_status EXIT
 
 # ---------------------------------------------------------------
 # Ana döngü
 # ---------------------------------------------------------------
 log "iş listesi: $(tr '\n' ' ' < relay/job.txt)"
+FAILED=0
 echo "run: ${GITHUB_RUN_ID:-local}" > "$WORK/run-status.txt"
+echo "repo: $(git rev-parse --short HEAD 2>/dev/null || echo '?')" >> "$WORK/run-status.txt"
 echo "started: $(date -u +%FT%TZ)" >> "$WORK/run-status.txt"
 
 for job in $(grep -v '^[[:space:]]*#' relay/job.txt | tr -d '\r' | tr -s '\n' ' '); do
   [ -n "$job" ] || continue
   log "=== İŞ: $job ==="
-  if ! "job_$job"; then
+  if "job_$job"; then
+    echo "result: ${job^^}_OK" >> "$WORK/run-status.txt"
+  else
+    FAILED=1
     log "!!! $job başarısız"
     echo "result: ${job^^}_FAILED" >> "$WORK/run-status.txt"
   fi
@@ -209,3 +250,5 @@ done
 echo "finished: $(date -u +%FT%TZ)" >> "$WORK/run-status.txt"
 log "bitti. Özet:"
 tail -20 "$WORK/run-status.txt" | tee -a "$LOG"
+
+exit "$FAILED"
