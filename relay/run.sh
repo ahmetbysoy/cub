@@ -332,7 +332,9 @@ publish_release() {
 # ---------------------------------------------------------------
 # mod: statik IL2CPP yaması + imza + Release
 # ---------------------------------------------------------------
-job_mod() {
+build_mod_common() {
+  # $1 patches dosyası · $2 tag · $3 başlık · $4 xapk adı · $5 açıklama
+  local patches="$1" tag="$2" title="$3" xapk_name="$4" note="$5"
   prepare_inputs || return 1
   ensure_venv || return 1
 
@@ -344,24 +346,38 @@ job_mod() {
       --base "$WORK/apk/com.cww.cubecraft.apk" \
       --split "$WORK/apk/config.arm64_v8a.apk" \
       --manifest "$WORK/apk/manifest.json" \
-      --patches relay/patches-mod1.json \
+      --patches "$patches" \
       --out-dir "$WORK/mod" \
-      --xapk-name CubeCrafter_mod1.xapk \
+      --xapk-name "$xapk_name" \
       $key_flags >>"$LOG" 2>&1 || { fail "mod build başarısız"; return 1; }
 
-  local xapk="$WORK/mod/CubeCrafter_mod1.xapk"
+  local xapk="$WORK/mod/$xapk_name"
   [ -f "$xapk" ] || { fail "mod XAPK üretilmedi"; return 1; }
-  log "mod XAPK: $(stat -c%s "$xapk") bayt · sha256=$(sha256sum "$xapk" | cut -c1-16)…"
+  log "mod XAPK: $(basename "$xapk") · $(stat -c%s "$xapk") bayt · sha256=$(sha256sum "$xapk" | cut -c1-16)…"
 
   local files=("$xapk")
   if [ -f "$WORK/mod/mod-summary.json" ]; then
     { echo "--- mod özeti ---"; cat "$WORK/mod/mod-summary.json"; } > "$WORK/mod-summary.txt" || true
     files+=("$WORK/mod-summary.txt")
   fi
-  publish_release "mod-1.17.14" "CubeCraft 1.17.14 — MOD 1 (para/bilet/elmas)" \
-    "Statik libil2cpp.so yaması: para, bilet ve elmas ödülleri sabit 9.961.472 değerine sabitlendi (~10 milyon). Yeniden imzalandı (v2+v3); kontrol sürümünün üstüne kurulabilir." \
-    "${files[@]}" || true
+  publish_release "$tag" "$title" "$note" "${files[@]}" || true
   return 0
+}
+
+job_mod() {
+  build_mod_common relay/patches-mod1.json \
+    "mod-1.17.14" \
+    "CubeCraft 1.17.14 — MOD 1 (para/bilet/elmas)" \
+    "CubeCrafter_mod1.xapk" \
+    "Statik libil2cpp.so yaması: para, bilet ve elmas 9.961.472 değerine sabitlendi. v2+v3 imzalı."
+}
+
+job_mod2() {
+  build_mod_common relay/patches-mod2.json \
+    "mod2-1.17.14" \
+    "CubeCraft 1.17.14 — MOD 2 (reklam ödülü ×5 + süresiz bonuslar)" \
+    "CubeCrafter_mod2.xapk" \
+    "Mod1 (para/bilet/elmas = 9.961.472) + reklam ödülü çarpanı ×5 + reklam bonusları (sırt çantası, büyülü alet, binek, ekstra çiftçi, fabrika hızlandırma) süresiz. v2+v3 imzalı."
 }
 
 # ---------------------------------------------------------------

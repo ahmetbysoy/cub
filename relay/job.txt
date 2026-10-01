@@ -1,5 +1,6 @@
 # relay/run.sh tarafından çalıştırılacak işler (satır başına bir iş)
 #   control → içeriği değiştirmeden yeniden imzala + Release (kontrol testi)
-#   mod     → statik IL2CPP yaması uygula + imzala + Release
+#   mod     → mod1: para/bilet/elmas sabit + imza + Release
+#   mod2    → mod2: mod1 + reklam ödülü ×5 + süresiz bonuslar + Release
 #   dump    → Il2CppDumper statik döküm (analysis/dump dalına push eder)
-mod
+mod2
