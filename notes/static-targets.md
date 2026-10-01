@@ -68,3 +68,23 @@ Kilit mantığı birden çok yere dağılmış görünüyor; ilk turda riskli, s
 - Bilet: `get_TicketsCount`
 - Elmas: `GetLevelReward` + `GetQuestsTotalReward`
 - (onay gelirse) reklam çarpanı: `get_RewardMultiplier`, `GetActiveBiomSoftCurrencyMultiply`
+
+---
+
+## Uygulanan sürüm: mod1 (yayınlandı)
+
+Sabit değer: **9.961.472** (`0x00980000` — tek komutla yazılabilen ~10 milyon değeri).
+Yama tanımı: `relay/patches-mod1.json` · build: `relay/build_mod.py` · Release: `mod-1.17.14`
+
+| # | Adres | Değişiklik | Anlam |
+|---|---|---|---|
+| 1 | `0x1DC3728` | `ldr w0,[x0,#0x18]; ret` → `mov w0,#0x980000; ret` | Para göstergesi/kontrolleri hep 9.961.472 görür |
+| 2 | `0x1DC3800` | `ldr w1,[x23,#0x18]` → `mov w1,#0x980000` | Para değişim olayı sabit değeri yayınlar (arayüz 0 göstermez) |
+| 3 | `0x1DC38EC` | `ldr w1,[x21,#0x18]` → `mov w1,#0x980000` | Harcama sonrası da arayüz sabit değeri gösterir |
+| 4 | `0xAF44B4` | `ldr w0,[x0,#0x20]; ret` → `mov w0,#0x980000; ret` | Bilet sayısı hep 9.961.472 |
+| 5 | `0xCFFE80` | gövde → `mov w0,#0x980000; ret` | Seviye bitişi elmas ödülü sabit |
+| 6 | `0xCFFF30` | gövde → `mov w0,#0x980000; ret` | Görev elmas ödülü sabit |
+
+Toplam değişen byte: 44 MB'lık `libil2cpp.so` içinde **30 bayt** (yalnızca yukarıdaki 6 nokta).
+Doğrulama: yamalı `libil2cpp.so` sha256 = `06fe14cbffc8d7fe600487f229cf7be89787e7ed4ce5b50970ebe1946e2b054d`
+(CI çıktısı ile birebir aynı). İmza: v2+v3, `CN=CubeCraft Mod Debug` (kontrol sürümüyle aynı anahtar).
