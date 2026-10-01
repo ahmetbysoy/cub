@@ -1,0 +1,5 @@
+# relay/run.sh tarafından çalıştırılacak işler (satır başına bir iş)
+#   control → içerik değişmeden yeniden imzalı paket + Release  (önce bu; git durumunu bozmaz)
+#   dump    → Il2CppDumper statik dökümü (analysis/dump dalına push eder; dal değiştirir)
+control
+dump
