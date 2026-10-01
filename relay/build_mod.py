@@ -166,6 +166,8 @@ def main() -> int:
         if so_back[off:off + len(hx(p["new"]))] != hx(p["new"]):
             problems.append(f"imzalı pakette yama kayıp: {p['desc']}")
     log("imzalı paket içi yama kontrolü: " + ("TAMAM" if not problems else "HATA"))
+    log(f"yamalı libil2cpp.so sha256={hashlib.sha256(patched).hexdigest()} (yerel doğrulanmış build ile karşılaştırılabilir)")
+    log(f"imzalı paketteki libil2cpp.so sha256={hashlib.sha256(so_back).hexdigest()}")
 
     # --- 6) XAPK ---
     xapk_path = os.path.join(args.out_dir, args.xapk_name)
