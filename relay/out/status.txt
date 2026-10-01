@@ -1,0 +1,17 @@
+run_id: 36838842882
+started: 2026-10-01T08:50:26Z
+target_url: https://data.winudf.com/XAPK/Y29tLmN3dy5jdWJlY3JhZnRfMTA2XzRiNGJlMmVi?_p=Y29tLmN3dy5jdWJlY3JhZnQ%3D&download_id=otr_1671105644527466&filename=CubeCrafter_1.17.14_APKPure.xapk&full_size=262785289&is_hot=false&k=8f274bdb83d43b8fee609b982b0406d06ac0b717&package_name=com.cww.cubecraft&source=web&token=1790841879-5510de3de1-0-83e8abc79a89ba818608fa7c879bc681
+target_branch: relay/cubecraft
+expected_bytes: 262785289
+result: OK
+bytes: 262785289
+sha256: 39150c787073b4f8a1931e3dc0c4d399d6f2f73472f6cda1c0f630f4effad8ac
+total 256632
+-rw-r--r-- 1 runner runner 47185920 Oct  1 08:51 part-000
+-rw-r--r-- 1 runner runner 47185920 Oct  1 08:51 part-001
+-rw-r--r-- 1 runner runner 47185920 Oct  1 08:51 part-002
+-rw-r--r-- 1 runner runner 47185920 Oct  1 08:51 part-003
+-rw-r--r-- 1 runner runner 47185920 Oct  1 08:51 part-004
+-rw-r--r-- 1 runner runner 26855689 Oct  1 08:51 part-005
+-rw-r--r-- 1 runner runner      576 Oct  1 08:51 status.txt
+commit: ok
