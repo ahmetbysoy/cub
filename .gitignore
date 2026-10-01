@@ -9,3 +9,7 @@
 cubecraft-1.17.14/extracted/
 cubecraft-1.17.14/work/
 out/
+
+# Python önbellekleri
+__pycache__/
+*.pyc
