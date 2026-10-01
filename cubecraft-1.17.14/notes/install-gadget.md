@@ -7,11 +7,11 @@ kurulacağını ve panelin nasıl çalıştırılacağını anlatır.
 
 | Dosya | Ne |
 | --- | --- |
-| `patched/CubeCrafter_1.17.14_gadget.xapk` | Kurulacak paket (base + config + gadget) |
-| `patched/com.cww.cubecraft.apk` | Yeniden imzalı base APK |
+| `patched/CubeCrafter_patched.xapk` | Kurulacak paket (base + config + gadget) — 159 MB |
+| `patched/com.cww.cubecraft.apk` | Yeniden imzalı base APK (içerik birebir aynı, yalnızca imza değişti) |
 | `patched/config.arm64_v8a.apk` | Yeniden imzalı split (gadget + DT_NEEDED yaması burada) |
 | `patched/cubecraft-mod.pem` / `.crt` | İmzalama anahtarı — **sakla**, güncelleme yaparken aynısı gerekir |
-| `patched/patch-summary.json` | Üretim özeti (hash'ler, config) |
+| `patched/patch-summary.json` | Üretim özeti (hash'ler, config, imza şemaları) |
 
 Yapılan değişiklikler:
 1. `lib/arm64-v8a/libmain.so` dosyasına `DT_NEEDED libfrida-gadget-raw.so` eklendi → oyun
@@ -20,6 +20,16 @@ Yapılan değişiklikler:
 3. `libfrida-gadget-raw.config.so` / `.config.json` eklendi → `127.0.0.1:27042` dinleme modu.
 4. Her iki APK aynı hata ayıklama anahtarıyla **v2+v3** imzalandı (eski `META-INF/BNDLTOOL.*`
   imzaları kaldırıldı).
+
+### Üretim sonrası doğrulamalar (bu depoda çalıştırıldı)
+
+| Kontrol | Sonuç |
+| --- | --- |
+| `libmain.so` DT_NEEDED | `[…] → ['libfrida-gadget-raw.so', 'liblog.so', 'libm.so', 'libdl.so', 'libc.so']` ✔ |
+| Split içeriği | gadget + `.config.so` + `.config.json` eklendi; yalnızca `libmain.so` değişti ✔ |
+| Base APK içeriği | **0 girdi değişti**, `classes.dex`/`AndroidManifest.xml` birebir aynı, zip sağlam ✔ |
+| İmzalar | iki APK da v2+v3, aynı sertifika (`CN=CubeCraft Mod Debug`) ✔ |
+| XAPK | base + split + `manifest.json` (orijinaliyle birebir) ✔ |
 
 ## 1) Kurulum
 

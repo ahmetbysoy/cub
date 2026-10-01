@@ -223,7 +223,12 @@ def main() -> int:
         xz.write(signed_base, os.path.basename(signed_base))
         xz.write(signed_split, os.path.basename(signed_split))
         if os.path.exists(manifest_src):
-            xz.write(manifest_src, "manifest.json")
+            # Kaynak manifest 1980 öncesi zaman damgası taşıyabilir (XAPK'dan çıkarılmış);
+            # zipfile 1980 öncesini reddeder → sabit ve geçerli bir tarihle yazıyoruz.
+            info = zipfile.ZipInfo("manifest.json", date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            with open(manifest_src, "rb") as fh:
+                xz.writestr(info, fh.read())
         else:
             log("UYARI: manifest.json bulunamadı, XAPK'ya eklenmedi")
 
