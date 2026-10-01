@@ -372,6 +372,14 @@ job_mod() {
     "Statik libil2cpp.so yaması: para, bilet ve elmas 9.961.472 değerine sabitlendi. v2+v3 imzalı."
 }
 
+job_mod3() {
+  build_mod_common relay/patches-mod3.json \
+    "mod3-1.17.14" \
+    "CubeCraft 1.17.14 — MOD 3 (reklamsız anında ödül)" \
+    "CubeCrafter_mod3.xapk" \
+    "Mod1+Mod2 (para/bilet/elmas 9.961.472, reklam ödülü ×5, süresiz bonuslar) + reklam izleyemediğinizde ödül ANINDA verilir: 'reklam hazır' kontrolleri hep olumlu, ödül callback'i reklamsız tetiklenir. v2+v3 imzalı."
+}
+
 job_mod2() {
   build_mod_common relay/patches-mod2.json \
     "mod2-1.17.14" \
